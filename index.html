@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Zeespares — Image Uploader</title>
+<style>
+  :root{
+    --orange:#ea580c;
+    --orange-soft:#fff1e9;
+    --teal:#0d9488;
+    --teal-soft:#e6f6f4;
+    --ink:#0f172a;
+    --muted:#64748b;
+    --line:#e8edf2;
+    --bg:#f6f8fa;
+    --card:#ffffff;
+    --ok:#16a34a;
+    --err:#dc2626;
+    --radius:14px;
+    --shadow:0 8px 30px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:'Inter',-apple-system,'Segoe UI',Arial,sans-serif;
+    background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;align-items:center;gap:14px;
+    padding:14px 22px;background:var(--card);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+  }
+  .logo-box{display:flex;align-items:center;gap:11px}
+  .logo-box img{height:38px;display:none}
+  .logo-mark{
+    width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--orange),#fb923c);color:#fff;font-weight:800;font-size:18px;
+    box-shadow:0 4px 14px rgba(234,88,12,.3);
+  }
+  .brand{font-weight:800;font-size:19px;letter-spacing:-.3px}
+  .brand span{color:var(--orange)}
+  header .spacer{margin-left:auto}
+  .ghost-btn{
+    padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;
+    color:var(--ink);cursor:pointer;font-weight:600;font-size:13.5px;transition:.15s;
+  }
+  .ghost-btn:hover{border-color:var(--orange);color:var(--orange)}
+  .ghost-btn:disabled{opacity:.45;cursor:not-allowed}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:1180px;margin:26px auto;padding:0 18px}
+  .grid{display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:start}
+  @media(max-width:920px){ .grid{grid-template-columns:1fr} }
+  .card{background:var(--card);padding:22px;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line)}
+  .card h2{font-size:18px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 16px}
+
+  /* ---------- Dropzone ---------- */
+  .drop{
+    border:2px dashed #d8e0e8;border-radius:14px;padding:34px 20px;text-align:center;
+    background:linear-gradient(180deg,#fbfdff,#fff);cursor:pointer;transition:.18s;
+  }
+  .drop:hover{border-color:var(--orange)}
+  .drop.drag{border-color:var(--orange);background:var(--orange-soft);transform:translateY(-1px)}
+  .drop .ico{font-size:30px}
+  .drop .big{font-size:16px;font-weight:700;margin:8px 0 2px}
+  .drop .hint{color:var(--muted);font-size:13px;margin:0}
+  .pick-btn{
+    display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:11px 20px;border:none;border-radius:11px;
+    background:var(--orange);color:#fff;font-weight:700;font-size:14px;cursor:pointer;
+    box-shadow:0 6px 18px rgba(234,88,12,.25);transition:.15s;
+  }
+  .pick-btn:hover{filter:brightness(1.05)}
+
+  /* ---------- Queue summary ---------- */
+  .qbar{display:none;align-items:center;gap:12px;margin-top:16px;padding:12px 14px;border-radius:11px;background:#f8fafc;border:1px solid var(--line)}
+  .qbar.show{display:flex}
+  .qbar .qtext{font-size:13.5px;color:var(--muted);font-weight:600}
+  .qbar .qtext b{color:var(--ink)}
+  .qbar .qactions{margin-left:auto;display:flex;gap:8px}
+
+  /* ---------- Upload rows ---------- */
+  .uploads{margin-top:14px;display:flex;flex-direction:column;gap:10px;max-height:440px;overflow:auto;padding-right:4px}
+  .item{display:flex;gap:12px;align-items:center;background:#fbfdff;padding:10px;border-radius:11px;border:1px solid var(--line)}
+  .thumb{width:56px;height:56px;border-radius:9px;object-fit:cover;background:#eef2f6;flex:none}
+  .meta{flex:1;min-width:0}
+  .meta .name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta .size{font-size:12px;color:var(--muted)}
+  .progress{height:6px;background:#eaeef3;border-radius:6px;overflow:hidden;margin-top:7px}
+  .bar{height:100%;width:0%;background:linear-gradient(90deg,var(--orange),#fb923c);transition:width .2s}
+  .row-actions{display:flex;gap:6px;align-items:center;flex:none}
+  .mini{
+    padding:7px 11px;border-radius:8px;border:1px solid var(--line);background:#fff;
+    font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink);transition:.12s;text-decoration:none;display:inline-block;
+  }
+  .mini:hover{border-color:var(--teal);color:var(--teal)}
+  .mini.copied{background:var(--teal);border-color:var(--teal);color:#fff}
+  .mini.retry{border-color:var(--orange);color:var(--orange)}
+  .status{font-size:12px;font-weight:700}
+  .status.err{color:var(--err)}
+
+  /* ---------- Stats ---------- */
+  .stat-grid{display:flex;gap:10px;margin-bottom:14px}
+  .stat{flex:1;background:linear-gradient(180deg,#fff,#fbfdff);padding:13px;border-radius:11px;text-align:center;border:1px solid var(--line)}
+  .stat .n{font-size:22px;font-weight:800;color:var(--orange);line-height:1}
+  .stat .n.teal{color:var(--teal)}
+  .stat .l{font-size:11.5px;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+
+  .search{display:flex;gap:8px;margin-bottom:14px}
+  .search input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--line);font-size:14px;outline:none}
+  .search input:focus{border-color:var(--orange)}
+
+  /* ---------- Gallery ---------- */
+  .gallery{display:flex;flex-direction:column;gap:10px;max-height:520px;overflow:auto;padding-right:4px}
+  .g-item{display:flex;gap:11px;align-items:center;padding:9px;border-radius:11px;background:#fff;border:1px solid var(--line)}
+  .g-thumb{width:52px;height:52px;border-radius:9px;object-fit:cover;background:#eef2f6;flex:none}
+  .g-body{flex:1;min-width:0}
+  .g-name{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .g-url{font-size:12px;color:var(--teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;text-decoration:none}
+  .g-date{font-size:11px;color:var(--muted);margin-top:2px}
+  .g-actions{display:flex;gap:6px;flex:none}
+  .empty{text-align:center;color:var(--muted);font-size:13.5px;padding:30px 10px}
+
+  /* ---------- Toasts ---------- */
+  #toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:50}
+  .toast{
+    background:var(--ink);color:#fff;padding:11px 16px;border-radius:10px;font-size:13.5px;font-weight:600;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);animation:slidein .2s ease;max-width:300px;
+  }
+  .toast.ok{background:var(--ok)} .toast.err{background:var(--err)}
+  @keyframes slidein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  footer{max-width:1180px;margin:18px auto 28px;padding:0 18px;color:var(--muted);font-size:12.5px}
+  /* ---------- BG removal toggle + processing note ---------- */
+  .bg-toggle{
+    display:flex;align-items:center;gap:9px;margin:12px 0 4px;
+    padding:11px 14px;border:1px solid var(--line);border-radius:12px;
+    background:var(--teal-soft);cursor:pointer;user-select:none;
+  }
+  .bg-toggle input{width:17px;height:17px;accent-color:var(--teal);cursor:pointer}
+  .bg-toggle .t-label{font-weight:700;font-size:13.5px;color:var(--teal)}
+  .bg-toggle .t-sub{font-size:11.5px;color:var(--muted);margin-left:auto}
+  .proc-note{font-size:11.5px;color:var(--teal);font-weight:600;margin-top:3px;display:none}
+  .proc-note.show{display:block}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-box">
+    <img id="logoImg" src="" alt="Zeespares" onerror="this.style.display='none';document.getElementById('logoMark').style.display='grid'">
+    <div class="logo-mark" id="logoMark">Z</div>
+    <div class="brand">Zee<span>spares</span></div>
+  </div>
+  <div class="spacer"></div>
+  <button class="ghost-btn" id="btnCopyAll">Copy all URLs</button>
+  <button class="ghost-btn" id="btnExport">Export CSV</button>
+  <button class="ghost-btn" id="btnClearAll">Clear all</button>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+
+    <!-- LEFT -->
+    <div class="card">
+      <h2>Upload images</h2>
+      <p class="sub">Drag & drop, click to choose, or paste from clipboard. Multiple and bulk supported.</p>
+
+      <label class="bg-toggle" for="bgToggle">
+        <input type="checkbox" id="bgToggle" checked />
+        <span class="t-label">🪄 Auto BG remove + white background</span>
+        <span class="t-sub">first run downloads AI model (~40MB, one time)</span>
+      </label>
+
+      <div id="dropArea" class="drop" tabindex="0">
+        <div class="ico">📤</div>
+        <div class="big">Drop images here</div>
+        <p class="hint">JPG, PNG, WEBP — uploads straight to your cloud</p>
+        <button id="chooseBtn" class="pick-btn">Select images</button>
+        <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
+      </div>
+
+      <div class="qbar" id="qbar">
+        <div class="qtext"><b id="qDone">0</b> / <span id="qTotal">0</span> done · <b id="qFail">0</b> failed</div>
+        <div class="qactions">
+          <button class="ghost-btn" id="btnRetryFailed" disabled>Retry failed</button>
+        </div>
+      </div>
+
+      <div class="uploads" id="uploadsList" aria-live="polite"></div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="card">
+      <div class="stat-grid">
+        <div class="stat"><div class="n" id="statCount">0</div><div class="l">Total saved</div></div>
+        <div class="stat"><div class="n teal" id="statToday">0</div><div class="l">Today</div></div>
+      </div>
+
+      <div class="search">
+        <input id="searchBox" placeholder="Search filename or URL" />
+        <button class="ghost-btn" id="btnClearSearch">Clear</button>
+      </div>
+
+      <div id="gallery" class="gallery"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer>Zeespares Image Uploader · Thumbnails load from the cloud, so your browser storage never fills up. URLs are saved locally for quick reuse (export anytime).</footer>
+
+<div id="toasts"></div>
+
+<script type="module">
+/* ======================= CONFIG ======================= */
+const WORKER_URL  = "https://images.zeespares.workers.dev";
+const STORAGE_KEY = "zeespares_uploads_v2";   // v2: stores URL only, no base64 (fixes quota crash)
+const CONCURRENCY = 4;                          // how many uploads run in parallel
+const MAX_RETRIES = 2;                          // auto-retry on network/worker error
+const LOGO_URL    = "";                         // optional: put your logo URL here
+
+/* ---- Background removal (client-side AI, free, no API) ---- */
+const BG_LIB_URL  = "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm";
+const BG_QUALITY  = 0.92;                       // JPEG quality of final white-bg image
+const BG_COLOR    = "#FFFFFF";                  // background color to composite onto
+
+/* ======================= UTIL ======================= */
+const $ = id => document.getElementById(id);
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function loadList(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+  catch(e){ return []; }
+}
+function saveList(list){
+  // Items are tiny (name + url + date), so this should never overflow.
+  // But we still guard it so a save failure can NEVER hide a successful upload.
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); return true; }
+  catch(e){ toast("Saved to cloud, but couldn't store URL locally (storage full).","err"); return false; }
+}
+
+function toast(msg,type=""){
+  const t=document.createElement('div'); t.className='toast '+type; t.textContent=msg;
+  $('toasts').appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); },2200);
+}
+
+function copyText(text,btn){
+  const done=()=>{ if(btn){ const old=btn.textContent; btn.textContent='Copied'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent=old; btn.classList.remove('copied'); },1200);} };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  } else { fallbackCopy(text,done); }
+}
+function fallbackCopy(text,done){
+  const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done && done(); }catch(e){}
+  ta.remove();
+}
+
+/* Pull a URL out of whatever the worker returns (JSON object, plain text, etc.) */
+function extractUrl(responseText){
+  const txt=(responseText||"").trim();
+  try{
+    const j=JSON.parse(txt);
+    return j.url || j.link || j.src || (j.result && j.result.url) || (j.data && j.data.url) || null;
+  }catch(e){
+    if(/^https?:\/\/\S+$/i.test(txt)) return txt;   // worker returned a bare URL string
+    return null;
+  }
+}
+
+/* ======================= DOM refs ======================= */
+const dropArea=$('dropArea'), fileInput=$('fileInput'), chooseBtn=$('chooseBtn');
+const uploadsList=$('uploadsList'), gallery=$('gallery');
+const statCount=$('statCount'), statToday=$('statToday'), searchBox=$('searchBox');
+const qbar=$('qbar'), qDone=$('qDone'), qTotal=$('qTotal'), qFail=$('qFail'), btnRetryFailed=$('btnRetryFailed');
+
+if(LOGO_URL){ const l=$('logoImg'); l.src=LOGO_URL; l.style.display='block'; $('logoMark').style.display='none'; }
+
+/* ======================= QUEUE STATE ======================= */
+let queue=[];          // {file, status:'pending'|'uploading'|'done'|'error', rowEl, barEl, actionsEl, statusEl, attempts}
+let active=0, totalJobs=0, doneJobs=0, failJobs=0;
+const failedJobs=[];   // jobs that exhausted retries (for "Retry failed")
+
+/* ======================= INPUT HANDLERS ======================= */
+chooseBtn.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',e=>{ addFiles(e.target.files); fileInput.value=''; });
+
+dropArea.addEventListener('dragover',e=>{e.preventDefault();dropArea.classList.add('drag');});
+dropArea.addEventListener('dragleave',()=>dropArea.classList.remove('drag'));
+dropArea.addEventListener('drop',e=>{e.preventDefault();dropArea.classList.remove('drag');addFiles(e.dataTransfer.files);});
+dropArea.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();fileInput.click();} });
+
+/* Paste image from clipboard (Ctrl+V) */
+window.addEventListener('paste',e=>{
+  const imgs=[...(e.clipboardData?.items||[])].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);
+  if(imgs.length) addFiles(imgs);
+});
+
+function addFiles(files){
+  const imgs=[...files].filter(f=>f.type.startsWith('image/'));
+  if(!imgs.length){ toast("No image files found","err"); return; }
+  imgs.forEach(addJob);
+  qbar.classList.add('show');
+  updateQueueBar();
+  pump();
+}
+
+/* ======================= BUILD A ROW + JOB ======================= */
+function addJob(file){
+  const row=document.createElement('div'); row.className='item';
+
+  const img=document.createElement('img'); img.className='thumb'; img.alt=file.name;
+  const fr=new FileReader(); fr.onload=e=>img.src=e.target.result; fr.readAsDataURL(file); // local preview only, not stored
+
+  const meta=document.createElement('div'); meta.className='meta';
+  const name=document.createElement('div'); name.className='name'; name.textContent=file.name;
+  const size=document.createElement('div'); size.className='size'; size.textContent=(file.size/1024).toFixed(0)+' KB';
+  const prog=document.createElement('div'); prog.className='progress';
+  const bar=document.createElement('div'); bar.className='bar'; prog.appendChild(bar);
+  const note=document.createElement('div'); note.className='proc-note';
+  meta.append(name,size,prog,note);
+
+  const actions=document.createElement('div'); actions.className='row-actions';
+
+  row.append(img,meta,actions);
+  uploadsList.prepend(row);
+
+  const wantBG = $('bgToggle').checked;
+  const job={file,status:(wantBG?'processing':'pending'),rowEl:row,barEl:bar,actionsEl:actions,thumbEl:img,noteEl:note,nameEl:name,attempts:0};
+  queue.push(job); totalJobs++;
+  qTotal.textContent=totalJobs;
+  if(wantBG) enqueueProcess(job);
+  return job;
+}
+
+/* ======================= BG REMOVAL PIPELINE ======================= */
+/* Runs ONE image at a time (AI processing is heavy). After processing,
+   the job's file is replaced with the white-bg JPEG and it joins the
+   normal upload queue — upload/retry logic stays completely untouched. */
+let bgLibPromise=null;
+function getBgLib(){
+  if(!bgLibPromise) bgLibPromise=import(BG_LIB_URL);   // lazy: only loads if toggle is used
+  return bgLibPromise;
+}
+
+const procQueue=[]; let procBusy=false;
+function enqueueProcess(job){ procQueue.push(job); pumpProcess(); }
+
+async function pumpProcess(){
+  if(procBusy) return;
+  const job=procQueue.shift();
+  if(!job) return;
+  procBusy=true;
+
+  try{
+    job.noteEl.textContent='Loading AI model...'; job.noteEl.classList.add('show');
+    const { removeBackground } = await getBgLib();
+
+    const transparent = await removeBackground(job.file, {
+      progress:(key,cur,tot)=>{
+        if(key && key.startsWith('fetch')){
+          const pct = tot ? Math.round(cur/tot*100) : 0;
+          job.noteEl.textContent='Downloading AI model (one time)... '+pct+'%';
+          job.barEl.style.width=pct+'%';
+        } else {
+          job.noteEl.textContent='Removing background...';
+        }
+      }
+    });
+
+    job.noteEl.textContent='Applying white background...';
+    const bmp=await createImageBitmap(transparent);
+    const c=document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height;
+    const x=c.getContext('2d');
+    x.fillStyle=BG_COLOR; x.fillRect(0,0,c.width,c.height);
+    x.drawImage(bmp,0,0);
+    const whiteBlob=await new Promise(r=>c.toBlob(r,'image/jpeg',BG_QUALITY));
+
+    const newName=job.file.name.replace(/\.[^.]+$/,'')+'-white.jpg';
+    job.file=new File([whiteBlob],newName,{type:'image/jpeg'});
+    job.nameEl.textContent=newName;
+    job.thumbEl.src=URL.createObjectURL(whiteBlob);   // preview shows the processed image
+    job.noteEl.textContent='✓ BG removed';
+    job.barEl.style.width='0%';
+  }catch(e){
+    console.error('BG removal failed:',e);
+    job.noteEl.textContent='BG removal failed — uploading original';
+    toast('BG removal failed for '+job.file.name+', uploading original','err');
+  }
+
+  job.status='pending';   // hand over to the normal upload queue
+  pump();
+  procBusy=false;
+  pumpProcess();
+}
+
+/* ======================= CONCURRENT PUMP ======================= */
+function pump(){
+  while(active<CONCURRENCY){
+    const job=queue.find(j=>j.status==='pending');
+    if(!job) break;
+    runJob(job);
+  }
+}
+
+function runJob(job){
+  job.status='uploading'; active++; job.attempts++;
+  job.actionsEl.innerHTML='';
+  job.barEl.style.width='0%';
+
+  const form=new FormData(); form.append('file',job.file);
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST',WORKER_URL,true);
+  xhr.timeout=60000;
+
+  xhr.upload.onprogress=ev=>{ if(ev.lengthComputable) job.barEl.style.width=Math.round(ev.loaded/ev.total*100)+'%'; };
+
+  xhr.onload=()=>{
+    active--;
+    if(xhr.status>=200 && xhr.status<300){
+      const url=extractUrl(xhr.responseText);
+      if(url){ onSuccess(job,url); }
+      else { onFailure(job,"Bad response"); }   // 2xx but no URL — worker config issue
+    } else {
+      onFailure(job,"HTTP "+xhr.status);
+    }
+    pump();
+  };
+  xhr.ontimeout=()=>{ active--; onFailure(job,"Timeout"); pump(); };
+  xhr.onerror =()=>{ active--; onFailure(job,"Network"); pump(); };
+
+  xhr.send(form);
+}
+
+function onSuccess(job,url){
+  job.status='done'; job.url=url;
+  job.barEl.style.width='100%';
+  doneJobs++; updateQueueBar();
+
+  // Save (tiny record) AFTER we already have the URL — a save failure can't hide the URL.
+  const list=loadList();
+  list.unshift({ id:Date.now()+'_'+Math.random().toString(36).slice(2,7), name:job.file.name, url, date:todayStr() });
+  saveList(list);
+  renderGallery(); renderStats();
+
+  // Inline actions — Copy (no popup) + Open
+  job.actionsEl.innerHTML='';
+  const copy=document.createElement('button'); copy.className='mini'; copy.textContent='Copy';
+  copy.onclick=()=>copyText(url,copy);
+  const open=document.createElement('a'); open.className='mini'; open.textContent='Open'; open.href=url; open.target='_blank'; open.rel='noopener';
+  job.actionsEl.append(copy,open);
+}
+
+function onFailure(job,reason){
+  // Auto-retry network/timeout/HTTP issues a couple of times before giving up.
+  if(job.attempts<=MAX_RETRIES && reason!=="Bad response"){
+    job.status='pending';
+    setTimeout(pump, 600*job.attempts);  // small backoff
+    return;
+  }
+  job.status='error';
+  failJobs++; if(!failedJobs.includes(job)) failedJobs.push(job);
+  updateQueueBar();
+
+  job.actionsEl.innerHTML='';
+  const s=document.createElement('span'); s.className='status err'; s.textContent=reason;
+  const retry=document.createElement('button'); retry.className='mini retry'; retry.textContent='Retry';
+  retry.onclick=()=>retryJob(job);
+  job.actionsEl.append(s,retry);
+}
+
+function retryJob(job){
+  const i=failedJobs.indexOf(job); if(i>-1) failedJobs.splice(i,1);
+  failJobs=Math.max(0,failJobs-1);
+  job.attempts=0; job.status='pending';
+  updateQueueBar(); pump();
+}
+
+function updateQueueBar(){
+  qDone.textContent=doneJobs; qTotal.textContent=totalJobs; qFail.textContent=failJobs;
+  btnRetryFailed.disabled = failedJobs.length===0;
+}
+
+btnRetryFailed.addEventListener('click',()=>{ [...failedJobs].forEach(retryJob); });
+
+/* ======================= GALLERY (thumbs load from CLOUD url) ======================= */
+function renderGallery(){
+  const list=loadList();
+  const q=searchBox.value.trim().toLowerCase();
+  const filtered=list.filter(i=>(i.name+' '+i.url).toLowerCase().includes(q));
+  gallery.innerHTML='';
+  if(!filtered.length){
+    gallery.innerHTML='<div class="empty">'+(list.length?'No matches.':'No uploads yet. Drop an image to get started.')+'</div>';
+    return;
+  }
+  filtered.forEach(i=>{
+    const node=document.createElement('div'); node.className='g-item';
+    const img=document.createElement('img'); img.className='g-thumb'; img.loading='lazy'; img.alt=i.name; img.src=i.url; // cloud URL
+    const body=document.createElement('div'); body.className='g-body';
+    const nm=document.createElement('div'); nm.className='g-name'; nm.textContent=i.name;
+    const a=document.createElement('a'); a.className='g-url'; a.href=i.url; a.target='_blank'; a.rel='noopener'; a.textContent=i.url;
+    const dt=document.createElement('div'); dt.className='g-date'; dt.textContent=i.date;
+    body.append(nm,a,dt);
+    const acts=document.createElement('div'); acts.className='g-actions';
+    const copy=document.createElement('button'); copy.className='mini'; copy.textContent='Copy'; copy.onclick=()=>copyText(i.url,copy);
+    const del=document.createElement('button'); del.className='mini'; del.textContent='Remove'; del.onclick=()=>removeItem(i.id);
+    acts.append(copy,del);
+    node.append(img,body,acts);
+    gallery.appendChild(node);
+  });
+}
+
+function renderStats(){
+  const list=loadList();
+  statCount.textContent=list.length;
+  statToday.textContent=list.filter(i=>i.date===todayStr()).length;
+}
+
+function removeItem(id){
+  saveList(loadList().filter(i=>i.id!==id));
+  renderGallery(); renderStats();
+}
+
+/* ======================= TOP BAR ACTIONS ======================= */
+searchBox.addEventListener('input',renderGallery);
+$('btnClearSearch').addEventListener('click',()=>{ searchBox.value=''; renderGallery(); });
+
+$('btnCopyAll').addEventListener('click',()=>{
+  const list=loadList(); if(!list.length) return toast("Nothing to copy","err");
+  copyText(list.map(i=>i.url).join('\n'));
+  toast(list.length+" URLs copied","ok");
+});
+
+$('btnExport').addEventListener('click',()=>{
+  const list=loadList(); if(!list.length) return toast("No uploads to export","err");
+  const rows=[['filename','url','date'],...list.map(i=>[i.name,i.url,i.date])];
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='zeespares-uploads.csv'; a.click(); URL.revokeObjectURL(url);
+});
+
+$('btnClearAll').addEventListener('click',()=>{
+  if(!loadList().length) return toast("Already empty","");
+  if(confirm("Clear all saved URLs from this browser? (Images stay safe on the cloud.)")){
+    saveList([]); renderGallery(); renderStats(); toast("Cleared","ok");
+  }
+});
+
+/* ======================= INIT ======================= */
+renderGallery(); renderStats();
+</script>
+</body>
+</html>
