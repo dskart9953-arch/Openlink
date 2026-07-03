@@ -383,7 +383,7 @@ async function pumpProcess(){
     x.drawImage(bmp,0,0);
     const whiteBlob=await new Promise(r=>c.toBlob(r,'image/jpeg',BG_QUALITY));
 
-    const newName=job.file.name.replace(/\.[^.]+$/,'')+'-white.jpg';
+    const newName=job.file.name.replace(/\.[^.]+$/,'')+'.jpg';
     job.file=new File([whiteBlob],newName,{type:'image/jpeg'});
     job.nameEl.textContent=newName;
     job.thumbEl.src=URL.createObjectURL(whiteBlob);   // preview shows the processed image
